@@ -31,7 +31,8 @@ jobs:
           for spec in 'arm64-v8a arm64 aarch64' 'x86_64 amd64 x86_64' 'armeabi-v7a arm armv7a'; do
             read -r abi arch triple <<< "$spec"
             mkdir -p "../app/src/main/jniLibs/$abi"
-            GOOS=android GOARCH="$arch" GOARM=7 CGO_ENABLED=1 CC="$BIN/${triple}-linux-android26-clang" go build -trimpath -ldflags='-s -w -extldflags=-Wl,-z,max-page-size=16384' -o "../app/src/main/jniLibs/$abi/libsmartdns.so" .
+            compiler="${triple}-linux-android26-clang"; if [ "$arch" = arm ]; then compiler="armv7a-linux-androideabi26-clang"; fi
+            GOOS=android GOARCH="$arch" GOARM=7 CGO_ENABLED=1 CC="$BIN/$compiler" go build -trimpath -ldflags='-s -w -extldflags=-Wl,-z,max-page-size=16384' -o "../app/src/main/jniLibs/$abi/libsmartdns.so" .
           done
       - name: Assemble and verify signed APK
         env:
@@ -53,3 +54,20 @@ jobs:
             Tyumex-Smart-DNS.apk
             SHA256SUMS
 
+  emulator:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: signed-apk
+      - name: Enable emulator acceleration
+        run: sudo chmod 666 /dev/kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          script: python3 tools/emulator-check.py
