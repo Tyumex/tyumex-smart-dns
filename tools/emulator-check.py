@@ -42,8 +42,9 @@ shell("settings","put","global","private_dns_mode","off")
 for proto in ("udp","tcp"):
     shell("iptables","-t","nat","-A","OUTPUT","-d","217.144.190.216","-p",proto,"--dport","53","-j","DNAT","--to-destination","10.0.2.2:15353")
 adb("unroot");adb("wait-for-device")
-shell("appops","set",pkg,"ACTIVATE_VPN","allow")
-shell("am","start","-W","-n",pkg+"/.Main");tap("Провайдер");tap("MagicDNS");tap("Включить DNS");tap_check=False
+shell("am","start","-W","-n",pkg+"/.Main")
+tap("Провайдер");tap("MagicDNS");tap("Включить DNS");tap("OK")
+tap_check=False
 for attempt in range(25):
     result=shell("ping","-c","1","-W","1",f"dns-check-{attempt}.example.com",check=False)
     if "127.0.0.1" in result: tap_check=True;break
