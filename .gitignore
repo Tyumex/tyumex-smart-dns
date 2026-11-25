@@ -1,0 +1,8 @@
+.gradle/
+**/build/
+local.properties
+*.p12
+*.pem
+*.jks
+app/src/main/jniLibs/
+
