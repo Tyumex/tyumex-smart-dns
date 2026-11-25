@@ -12,7 +12,7 @@ def tap(text):
             for n in ET.fromstring(raw).iter("node"):
                 if text.lower() in n.get("text","").lower():
                     x,y,r,b=map(int,re.findall(r"\d+",n.get("bounds")))
-                    shell("input","tap",str((x+r)//2),str((y+b)//2));return
+                    shell("input","tap",str((x+r)//2),str((y+b)//2));print("Tapped",n.get("text"),x,y,r,b,flush=True);return
         time.sleep(.5)
     raise RuntimeError("Button missing: "+text+"\n"+raw[-3000:])
 def answer(q):
@@ -43,12 +43,17 @@ for proto in ("udp","tcp"):
     shell("iptables","-t","nat","-A","OUTPUT","-d","217.144.190.216","-p",proto,"--dport","53","-j","DNAT","--to-destination","10.0.2.2:15353")
 adb("unroot");adb("wait-for-device")
 shell("appops","set",pkg,"ACTIVATE_VPN","allow")
-shell("am","start","-n",pkg+"/.Main");tap("Провайдер");tap("MagicDNS");tap("Включить DNS");tap_check=False
-for _ in range(16):
-    result=shell("ping","-c","1","-W","1","tyumex-fixture.invalid",check=False)
+shell("am","start","-W","-n",pkg+"/.Main");tap("Провайдер");tap("MagicDNS");tap("Включить DNS");tap_check=False
+for attempt in range(25):
+    result=shell("ping","-c","1","-W","1",f"dns-check-{attempt}.example.com",check=False)
     if "127.0.0.1" in result: tap_check=True;break
     time.sleep(.5)
-assert tap_check, result+"\n"+adb("logcat","-d","-s","AndroidRuntime:E","Go:E")[-2500:]
+if not tap_check:
+    print(shell("ip","addr","show",check=False),flush=True)
+    shell("uiautomator","dump","/sdcard/dns-ui.xml",check=False)
+    raw=shell("cat","/sdcard/dns-ui.xml",check=False)
+    print([n.get("text") for n in ET.fromstring(raw).iter("node") if n.get("text")],flush=True)
+    raise AssertionError(result+"\n"+adb("logcat","-d","-s","AndroidRuntime:E","Go:E","Vpn:I","VpnManagerService:I")[-4500:])
 # Direct TCP DNS on the tunnel endpoint (unprivileged shell identity).
 q=bytes.fromhex("01000100000100000000000001610000010001")
 cmd="printf '"+ "".join("\\%03o"%b for b in (len(q).to_bytes(2,"big")+q)) +"' | toybox nc -w 3 192.0.2.53 53 | toybox od -An -tx1"
