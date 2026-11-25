@@ -17,6 +17,7 @@ class Main:Activity(),SharedPreferences.OnSharedPreferenceChangeListener{
     private lateinit var status:TextView;private lateinit var summary:TextView;private lateinit var report:TextView
     private lateinit var start:Button;private lateinit var check:Button;private lateinit var update:Button;private lateinit var mode:Button;private lateinit var host:Button
     private var checking=false
+    private var downloading=false
     private val mint=Color.rgb(105,226,193)
     private fun dp(v:Int)=(resources.displayMetrics.density*v).toInt()
     override fun onCreate(s:Bundle?){super.onCreate(s)
@@ -39,7 +40,10 @@ class Main:Activity(),SharedPreferences.OnSharedPreferenceChangeListener{
         report=label("",15)
         label("Обновления",21);summary=label("",15)
         check=button{refresh()};check.text="Проверить GitHub"
-        update=button{val tag=prefs.getString("latest","")!!;startActivity(Intent(Intent.ACTION_VIEW,Uri.parse(repo+"/releases/download/"+tag+"/Tyumex-Smart-DNS.apk")))}
+        update=button{if(!downloading){downloading=true;draw();val tag=prefs.getString("latest","")!!
+            thread{val result=runCatching{Installer.download(this,tag)};runOnUiThread{if(!isDestroyed){downloading=false;draw()
+                result.onSuccess{runCatching{Installer.open(this)}.onFailure{toast(it.localizedMessage?:"Ошибка установки")}}
+                    .onFailure{toast(it.localizedMessage?:"Ошибка загрузки")}}}}}}
         label("Работает через локальный VPN на телефоне. Другой VPN в этом профиле будет отключён. Smart DNS видит запрашиваемые домены. Браузеры со своим защищённым DNS могут игнорировать настройку.",14,Color.LTGRAY)
         RefreshJob.schedule(this)
         if(intent.getBooleanExtra("enable",false)&&s==null)consent()
@@ -51,7 +55,7 @@ class Main:Activity(),SharedPreferences.OnSharedPreferenceChangeListener{
     }}
     private fun consent(){prefs.edit().remove("error").apply();val ask=VpnService.prepare(this)
         if(ask==null)Tunnel.toggleOn(this)else startActivityForResult(ask,53)}
-    @Deprecated("Android result callback") override fun onActivityResult(r:Int,result:Int,data:Intent?){super.onActivityResult(r,result,data);if(r==53&&result==RESULT_OK)Tunnel.toggleOn(this)}
+    @Deprecated("Android result callback") override fun onActivityResult(r:Int,result:Int,data:Intent?){super.onActivityResult(r,result,data);if(r==53&&result==RESULT_OK)Tunnel.toggleOn(this);if(r==72 && packageManager.canRequestPackageInstalls())runCatching{Installer.open(this)}.onFailure{toast(it.localizedMessage?:"Ошибка установки")}}
     override fun onResume(){super.onResume();prefs.registerOnSharedPreferenceChangeListener(this);draw()}
     override fun onPause(){prefs.unregisterOnSharedPreferenceChangeListener(this);super.onPause()}
     override fun onSharedPreferenceChanged(p:SharedPreferences?,k:String?){draw()}
@@ -66,7 +70,7 @@ class Main:Activity(),SharedPreferences.OnSharedPreferenceChangeListener{
         summary.text="Приложение "+version+" · каталог №"+cat.rev+"\nИсточник HB AI "+cat.source+" · провайдеров: "+cat.providers.size+
             prefs.getString("catalogChange","")!!.let{if(it.isEmpty())"" else "\n"+it}
         check.isEnabled=!checking;check.text=if(checking)"Проверяю…" else "Проверить GitHub"
-        update.text="Скачать обновление "+tag;update.visibility=if(Store.newer(tag,version))View.VISIBLE else View.GONE
+        update.isEnabled=!downloading;update.text=if(downloading)"Скачиваю и проверяю APK…" else "Установить "+tag;update.visibility=if(Store.newer(tag,version))View.VISIBLE else View.GONE
     }
 }
 class QuickTile:TileService(){

@@ -1,7 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
  <uses-permission android:name="android.permission.INTERNET"/><uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
  <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/><uses-permission android:name="android.permission.FOREGROUND_SERVICE_SYSTEM_EXEMPTED"/>
+ <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
  <application android:label="Tyumex Smart DNS" android:allowBackup="false" android:theme="@android:style/Theme.Material.NoActionBar" android:icon="@drawable/ic_dns">
+ <provider android:name="androidx.core.content.FileProvider" android:authorities="app.tyumex.smartdns.updates" android:exported="false" android:grantUriPermissions="true"><meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/updates_path"/></provider>
  <activity android:name=".Main" android:exported="true"><intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter></activity>
  <service android:name=".Tunnel" android:permission="android.permission.BIND_VPN_SERVICE" android:exported="false" android:foregroundServiceType="systemExempted"><intent-filter><action android:name="android.net.VpnService"/></intent-filter><meta-data android:name="android.net.VpnService.SUPPORTS_ALWAYS_ON" android:value="false"/></service>
  <service android:name=".RefreshJob" android:permission="android.permission.BIND_JOB_SERVICE" android:exported="true"/>
