@@ -36,6 +36,7 @@ class Tunnel:VpnService(),SharedPreferences.OnSharedPreferenceChangeListener{
     }
     private val handler=Handler(Looper.getMainLooper())
     private val executor=Executors.newSingleThreadExecutor()
+    private var alive=true
     private var current:Provider?=null
     private var bridge:Bridge?=null
     private var ranking=false
@@ -70,7 +71,7 @@ class Tunnel:VpnService(),SharedPreferences.OnSharedPreferenceChangeListener{
     }
     override fun onSharedPreferenceChanged(p:SharedPreferences?,k:String?){if(k in listOf("signed","mode","hosts"))select()}
     private fun select(){
-        if(!running)return
+        if(!alive || !running)return
         if(ranking){pending=true;return}
         ranking=true
         val cat=Store.current(this)
@@ -80,7 +81,7 @@ class Tunnel:VpnService(),SharedPreferences.OnSharedPreferenceChangeListener{
         val netChanged=networkChanged;networkChanged=false
         state(if(current==null)"Проверяю доступность сервисов…" else "${current!!.name} · проверяю сервисы…")
         executor.submit{val scores=runCatching{Probe.rank(cat.providers.filter{it.id!="xbox"},hosts)}
-            handler.post{ranking=false;if(!running)return@post
+            handler.post{ranking=false;if(!alive || !running)return@post
                 if(pending){pending=false;select();return@post}
                 val all=scores.getOrDefault(emptyList());val top=all.firstOrNull()
                 prefs.edit().putString("scores",all.joinToString("\n"){s->
@@ -113,7 +114,7 @@ class Tunnel:VpnService(),SharedPreferences.OnSharedPreferenceChangeListener{
     }
     private fun fail(e:Exception){prefs.edit().putString("error",e.localizedMessage?:"Ошибка DNS").apply();stopSelf()}
     override fun onRevoke(){stopSelf()}
-    override fun onDestroy(){running=false
+    override fun onDestroy(){alive=false;running=false
         runCatching{getSystemService(ConnectivityManager::class.java).unregisterNetworkCallback(onNetwork)}
         prefs.unregisterOnSharedPreferenceChangeListener(this);handler.removeCallbacksAndMessages(null)
         bridge?.close();bridge=null;executor.shutdownNow();state("Выключено");stopForeground(STOP_FOREGROUND_REMOVE);super.onDestroy()}

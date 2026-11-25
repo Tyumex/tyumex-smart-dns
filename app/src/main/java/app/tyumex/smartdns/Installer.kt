@@ -17,11 +17,20 @@ object Installer {
         val base=repo+"/releases/download/"+tag+"/"
         val expected=String(bytes(base+"SHA256SUMS",1024)).lineSequence()
             .map{it.trim().split(Regex("\\s+"))}.first{it.size==2&&it[1]=="Tyumex-Smart-DNS.apk"}[0]
-        val data=bytes(base+"Tyumex-Smart-DNS.apk",64*1024*1024)
-        require(digest(data).equals(expected,true)){"Не совпала контрольная сумма APK"}
         val dir=File(a.cacheDir,"updates").apply{mkdirs()}
-        val tmp=File(dir,"staging.apk");tmp.writeBytes(data)
+        val tmp=File.createTempFile("incoming-", ".apk",dir)
         try{
+            val hash=MessageDigest.getInstance("SHA-256")
+            val conn=java.net.URL(base+"Tyumex-Smart-DNS.apk").openConnection() as java.net.HttpURLConnection
+            conn.connectTimeout=10000;conn.readTimeout=20000;conn.setRequestProperty("User-Agent",agent)
+            try{require(conn.responseCode==200){"HTTP ${conn.responseCode}"}
+                conn.inputStream.use{input->tmp.outputStream().use{out->
+                    val buf=ByteArray(32768);var total=0L
+                    while(true){val n=input.read(buf);if(n<0)break;total+=n;require(total<=64L*1024*1024)
+                        hash.update(buf,0,n);out.write(buf,0,n)}
+                }}
+            }finally{conn.disconnect()}
+            require(hash.digest().joinToString(""){"%02x".format(it)}.equals(expected,true)){"Не совпала контрольная сумма APK"}
             val pm=a.packageManager
             @Suppress("DEPRECATION")
             val flags=if(Build.VERSION.SDK_INT>=28)PackageManager.GET_SIGNING_CERTIFICATES else PackageManager.GET_SIGNATURES
