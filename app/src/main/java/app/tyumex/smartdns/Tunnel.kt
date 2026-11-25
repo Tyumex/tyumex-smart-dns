@@ -63,7 +63,7 @@ class Tunnel:VpnService(),SharedPreferences.OnSharedPreferenceChangeListener{
         getSystemService(NotificationManager::class.java).createNotificationChannel(NotificationChannel("tunnel","Соединение DNS",NotificationManager.IMPORTANCE_LOW))
     }
     override fun onStartCommand(i:Intent?,flags:Int,id:Int):Int{
-        if(i?.action==STOP){stopSelf();return START_NOT_STICKY}
+        if(i?.action==STOP){disconnect();return START_NOT_STICKY}
         if(!running){running=true;startForeground(53,note("Выбор DNS…"));prefs.registerOnSharedPreferenceChangeListener(this)
             getSystemService(ConnectivityManager::class.java).registerDefaultNetworkCallback(onNetwork)
             handler.postDelayed(timer,15*60*1000L)}
@@ -112,8 +112,12 @@ class Tunnel:VpnService(),SharedPreferences.OnSharedPreferenceChangeListener{
             bridge=next;current=p;old?.close();next.start();state("Включено · ${p.name}")
         }catch(e:Exception){child.destroy();throw e}
     }
-    private fun fail(e:Exception){prefs.edit().putString("error",e.localizedMessage?:"Ошибка DNS").apply();stopSelf()}
-    override fun onRevoke(){stopSelf()}
+    private fun fail(e:Exception){prefs.edit().putString("error",e.localizedMessage?:"Ошибка DNS").apply();disconnect()}
+    private fun disconnect(){
+        alive=false;running=false;val old=bridge;bridge=null;current=null;old?.close()
+        handler.removeCallbacksAndMessages(null);state("Выключено");stopForeground(STOP_FOREGROUND_REMOVE);stopSelf()
+    }
+    override fun onRevoke(){handler.post{disconnect()}}
     override fun onDestroy(){alive=false;running=false
         runCatching{getSystemService(ConnectivityManager::class.java).unregisterNetworkCallback(onNetwork)}
         prefs.unregisterOnSharedPreferenceChangeListener(this);handler.removeCallbacksAndMessages(null)

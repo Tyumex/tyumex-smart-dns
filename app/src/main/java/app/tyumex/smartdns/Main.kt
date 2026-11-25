@@ -28,7 +28,7 @@ class Main:Activity(),SharedPreferences.OnSharedPreferenceChangeListener{
         fun button(fn:()->Unit):Button{val b=Button(this);b.isAllCaps=false;b.setOnClickListener{fn()};box.addView(b,LinearLayout.LayoutParams(-1,-2));return b}
         label("Tyumex Smart DNS",30).typeface=Typeface.DEFAULT_BOLD
         status=label("",19,mint)
-        start=button{if(Tunnel.running)stopService(Intent(this,Tunnel::class.java))else consent()}
+        start=button{if(Tunnel.running)startService(Intent(this,Tunnel::class.java).setAction(Tunnel.STOP))else consent()}
         start.backgroundTintList=ColorStateList.valueOf(mint);start.setTextColor(Color.BLACK)
         label("Подключение",21)
         mode=button{val all=Store.current(this).providers;val names=listOf("Автоматически")+all.map{it.name}
@@ -76,7 +76,7 @@ class Main:Activity(),SharedPreferences.OnSharedPreferenceChangeListener{
 class QuickTile:TileService(){
     override fun onStartListening(){super.onStartListening();qsTile?.let{it.state=if(Tunnel.running)Tile.STATE_ACTIVE else Tile.STATE_INACTIVE;it.updateTile()}}
     override fun onClick(){super.onClick()
-        if(Tunnel.running){stopService(Intent(this,Tunnel::class.java));return}
+        if(Tunnel.running){startService(Intent(this,Tunnel::class.java).setAction(Tunnel.STOP));return}
         if(VpnService.prepare(this)==null){Tunnel.toggleOn(this);return}
         val i=Intent(this,Main::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK).putExtra("enable",true)
         if(android.os.Build.VERSION.SDK_INT>=34)startActivityAndCollapse(PendingIntent.getActivity(this,53,i,PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT))
