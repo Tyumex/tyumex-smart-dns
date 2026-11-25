@@ -41,6 +41,7 @@ pkg="app.tyumex.smartdns"
 shell("settings","put","global","private_dns_mode","off")
 for proto in ("udp","tcp"):
     shell("iptables","-t","nat","-A","OUTPUT","-d","217.144.190.216","-p",proto,"--dport","53","-j","DNAT","--to-destination","10.0.2.2:15353")
+adb("unroot");adb("wait-for-device")
 shell("appops","set",pkg,"ACTIVATE_VPN","allow")
 shell("am","start","-n",pkg+"/.Main");tap("Провайдер");tap("MagicDNS");tap("Включить DNS");tap_check=False
 for _ in range(16):
@@ -53,5 +54,5 @@ q=bytes.fromhex("01000100000100000000000001610000010001")
 cmd="printf '"+ "".join("\\%03o"%b for b in (len(q).to_bytes(2,"big")+q)) +"' | toybox nc -w 3 192.0.2.53 53 | toybox od -An -tx1"
 wire=shell(cmd,check=False).replace(" ","").replace("\n",""); assert "7f000001" in wire,wire
 tap("Отключить DNS");time.sleep(1)
-assert "192.0.2.53" not in shell("ip","addr","show","tun0",check=False)
+assert "192.0.2.1/" not in shell("ip","addr","show","tun0",check=False)
 print("PASS: APK launch, provider selection, VPN, UDP and TCP DNS, disconnect")

@@ -10,7 +10,7 @@ import java.io.*
 import java.util.concurrent.Executors
 import kotlin.concurrent.thread
 
-private class Bridge(val fd:ParcelFileDescriptor,val child:Process,val died:()->Unit){
+private class Bridge(val fd:ParcelFileDescriptor,val child:java.lang.Process,val died:()->Unit){
     @Volatile private var closed=false
     fun start(){
         fun worker(body:()->Unit)=thread(isDaemon=true){try{body()}catch(_:Exception){}finally{if(!closed)died()}}
